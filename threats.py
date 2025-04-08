@@ -1,7 +1,8 @@
 import math
 import numpy as np
+from target import Target
 
-def simulate_barrages_uniform(total_time):
+def generate_barrage(total_time):
     """
     Simulates barrages occurring according to Poisson processes and records
     the time and type of each barrage, using a uniform distribution for type selection.
@@ -40,9 +41,31 @@ def simulate_barrages_uniform(total_time):
 
     return barrage_log
 
-if __name__ == '__main__':
+def generate_targets_by_barrage(barrage_type):
+    """
+    Generates targets based on the type of barrage detected. For simplicity,
+    this function currently generates a fixed number of targets.
+
+    Returns:
+        list: A list of target variables representing the generated targets.
+    """
+    if barrage_type == "small":
+        target1 = Target(distance=np.random.normal(1000, 50), velocity=1000, target_type="anti-ship")
+        target2 = Target(distance=np.random.normal(1000, 50), velocity=1500, target_type="anti-ship")
+        return [target1, target2]
+    elif barrage_type == "big":
+        new_targets = []
+        for _ in range(8):
+            target = Target(distance=np.random.normal(1000, 50), velocity=2000, target_type="drone")
+            new_targets.append(target)
+        for _ in range(2):
+            target = Target(distance=np.random.normal(1000, 50), velocity=3000, target_type="anti-ship")
+            new_targets.append(target)
+        return new_targets
+    
+def present_barrage_generation():
     simulation_duration = 14  # Simulate for 14 days
-    barrage_history = simulate_barrages_uniform(simulation_duration)
+    barrage_history = generate_barrage(simulation_duration)
 
     print(f"Barrage history over {simulation_duration:.2f} days:")
     for time, type in barrage_history:
