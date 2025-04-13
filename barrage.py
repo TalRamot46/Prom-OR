@@ -1,6 +1,6 @@
 import math
 import numpy as np
-from target import Target
+import target
 
 def generate_barrage(total_time):
     """
@@ -50,18 +50,9 @@ def generate_targets_by_barrage(barrage_type):
         list: A list of target variables representing the generated targets.
     """
     if barrage_type == "small":
-        target1 = Target(distance=np.random.normal(1000, 50), velocity=1000, target_type="anti-ship")
-        target2 = Target(distance=np.random.normal(1000, 50), velocity=1500, target_type="anti-ship")
-        return [target1, target2]
+        return [target.Drone() for _ in range(2)]
     elif barrage_type == "big":
-        new_targets = []
-        for _ in range(8):
-            target = Target(distance=np.random.normal(1000, 50), velocity=2000, target_type="drone")
-            new_targets.append(target)
-        for _ in range(2):
-            target = Target(distance=np.random.normal(1000, 50), velocity=3000, target_type="anti-ship")
-            new_targets.append(target)
-        return new_targets
+        return [target.Drone() for _ in range(2)] + [target.Anti_Ship_Missile() for _ in range(8)]
     
 def present_barrage_generation():
     simulation_duration = 14  # Simulate for 14 days
