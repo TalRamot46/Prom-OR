@@ -15,6 +15,8 @@ class Target:
     
     def update_distance(self, dt):
         self.distance -= self.velocity / 3600 * dt
+        if self.distance < 0:
+            raise ValueError("Distance cannot be negative.")
 
     def get_arrival_time(self):
         if self.velocity == 0:
@@ -74,15 +76,15 @@ class Target:
             return None
         
         # If the firing time is not in the dictionary, use linear interpolation
-        max_firing_time = Target.linear_interpolate(self.distance, self._laser_interception_timing_data)
+        max_firing_time = Target.linear_interpolate(self.distance, self._laser_interception_timing_data) if self.distance > 2 else 2
         a = self._interception_max_probabolities["beam"]
         p = 0.95 # fraction of a achieved at max firing time
         d = max_firing_time
-        times = np.linspace(0, 1.5 * d, 300)
+        times = np.linspace(0.01, 1.5 * d, 300)
         probability_of_interception_by_time = a / (1 + np.exp((1 / d) * np.log(1 / p - 1) * (2 * times - d))) - a * (1 - p)
         
         # Calculate the best interception time - by the ratio of probability to time
-        ratio_of_interception_by_time = probability_of_interception_by_time / times if times[times == 0] == np.array([]) else np.zeros_like(times)
+        ratio_of_interception_by_time = probability_of_interception_by_time / times
         optimized_index = np.argmax(ratio_of_interception_by_time)
         optimized_firing_time = times[optimized_index]
         max_ratio_of_interception_by_time = ratio_of_interception_by_time[optimized_index]
@@ -131,3 +133,4 @@ class Ballistic_Missile(Target):
         if velocity is None:
             velocity = np.random.normal(3000, 100) # to be checked with Shaked
         super().__init__(distance, velocity, "balistic", interception_max_probabolities, laser_interception_timing_data)
+

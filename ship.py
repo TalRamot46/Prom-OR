@@ -32,7 +32,7 @@ class Ship():
         time.sleep(optimized_firing_time)  # Simulate interception time
         was_intercepted = random.random() < probability_of_interception
         result_queue.put([was_intercepted, optimized_firing_time, target_to_intercept])
-
+ 
 
     def process_barrages_intercept(self, barrage_history, total_mission_time: float, dt=1):
         current_mission_time_in_seconds = 0
