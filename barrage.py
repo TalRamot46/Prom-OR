@@ -50,7 +50,7 @@ def generate_targets_by_barrage(barrage_type):
         list: A list of target variables representing the generated targets.
     """
     if barrage_type == "small":
-        return [target.Anti_Ship_Missile() for _ in range(20)]
+        return [target.Anti_Ship_Missile() for _ in range(2)]
     elif barrage_type == "big":
         return [target.Drone() for _ in range(2)] + [target.Anti_Ship_Missile() for _ in range(8)]
     

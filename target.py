@@ -71,12 +71,15 @@ class Target:
         linear_interploated_time = self.linear_interpolate(self.distance, interception_timing_data)
         return linear_interploated_time
     
+    def get_max_fire_time(self):
+        return Target.linear_interpolate(self.distance, self._laser_interception_timing_data) if self.distance > 2 else 2
+
     def get_optimized_laser_firing_time(self, plot=False):
         if self._laser_interception_timing_data is None:
             return None
         
         # If the firing time is not in the dictionary, use linear interpolation
-        max_firing_time = Target.linear_interpolate(self.distance, self._laser_interception_timing_data) if self.distance > 2 else 2
+        max_firing_time = self.get_max_fire_time()
         a = self._interception_max_probabolities["beam"]
         p = 0.95 # fraction of a achieved at max firing time
         d = max_firing_time
@@ -99,6 +102,9 @@ class Target:
             plt.show()
 
         return optimized_firing_time, probability_of_interception, max_ratio_of_interception_by_time
+    
+    def get_laser_constant(self): 
+        return self.get_max_fire_time() / self.get_arrival_time()
     
 class Anti_Ship_Missile(Target):
     def __init__(self, distance=None, velocity=None):
