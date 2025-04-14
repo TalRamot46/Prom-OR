@@ -14,14 +14,14 @@ class Target:
         return self._interception_probabolities[interceptor]
     
     def update_distance(self, dt):
-        self.distance -= self.velocity / 3600 * dt
+        self.distance -= self.velocity * dt / 3600
         if self.distance < 0:
             raise ValueError("Distance cannot be negative.")
 
     def get_arrival_time(self):
         if self.velocity == 0:
             return float('inf')
-        return self.distance / self.velocity
+        return self.distance / self.velocity * 3600
 
     @staticmethod
     def linear_interpolate(key, data_dict):
@@ -104,7 +104,7 @@ class Target:
         return optimized_firing_time, probability_of_interception, max_ratio_of_interception_by_time
     
     def get_laser_constant(self): 
-        return self.get_max_fire_time() / self.get_arrival_time()
+        return self.get_arrival_time() / self.get_max_fire_time()
     
 class Anti_Ship_Missile(Target):
     def __init__(self, distance=None, velocity=None):

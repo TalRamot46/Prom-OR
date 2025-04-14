@@ -31,12 +31,12 @@ EXPLOSION_COLOR = (255, 255, 0)
 EXPLOSION_DURATION = 0.5
 ROCKET_SPEED = 200  # Pixels per second, reduced for visual effect
 ROCKET_ACCELERATION = 10  # Added rocket acceleration
-ROCKET_LAUNCH_DELAY = 5  # Add a 5-second delay between rocket launches
+ROCKET_LAUNCH_DELAY = 1  # Add a 5-second delay between rocket launches
 ROCKET_LENGTH = 10  # new rocket length
 MAX_ROCKETS_PER_LAUNCH = 2  # Allow launching a pair of rockets
 GAME_OVER_REASON_TIME = 0
 GAME_OVER_REASON_SHIP_HIT = 1
-LASER_COOLDOWN = 0.5  # Add a cooldown for the laser
+LASER_COOLDOWN = 1  # Add a cooldown for the laser
 
 
 class Simulation:
@@ -109,6 +109,9 @@ class Simulation:
             self.angle = math.atan2(target_symbol.y - start_y, target_symbol.x - start_x)  # calculate initial angle
             self.has_collided = False
 
+        def get_target_symbol(self):
+            return self.target_symbol
+
         def update_velocity(self, dt):
             if self.has_collided:
                 return  # Stop updating velocity after collision
@@ -175,7 +178,7 @@ class Simulation:
         self.interception_in_progress = False
         self.intercepted_target_symbol = None
         self.result_queue = queue.Queue()
-        self.total_mission_duration = 200  # Total mission duration in days
+        self.total_mission_duration = 80  # Total mission duration in days
         self.simulated_barrages = barrage.generate_barrage(self.total_mission_duration)
         self.barrage_index = 0
         self.current_mission_time = 0
@@ -209,17 +212,13 @@ class Simulation:
         self.laser_start_time = time.time()  # Store the start time of the laser
         threading.Thread(target=self.ship_instance.intercept_with_laser,
                          args=(intercepted_target, self.result_queue)).start()
-        self.interception_end_time = None  # Store the end time here
-        self.interception_result = None  # Store the result here
 
     def handle_interception_result(self):
         try:
             result_list = self.result_queue.get_nowait()
             self.interception_result = result_list[0]
-            interception_duration = result_list[1]
-            self.interception_end_time = time.time() + interception_duration  # Calculate end time
+            self.interception_end_time = time.time()
             self.interception_in_progress = False
-            self.intercepted_target_symbol = None
         except queue.Empty:
             pass
 
@@ -278,10 +277,8 @@ class Simulation:
                     # Check if the laser is off cooldown
                     if time.time() - self.laser_cooldown_time >= LASER_COOLDOWN:
                         self.intercept_target(target_to_intercept)  # call intercept target
-                        print(
-                            f"Attempting to intercept target {target_to_intercept.get_target().type} in distance {target_to_intercept.get_target().distance}.")
-                    else:
-                        print("Laser on cooldown")
+                        #print(
+                        #    f"Attempting to intercept target {target_to_intercept.get_target().type} in distance {target_to_intercept.get_target().distance}.")
 
             # Launch up to MAX_ROCKETS_PER_LAUNCH at a time, if available
             if self.target_symbols:
@@ -290,10 +287,13 @@ class Simulation:
                     ship_x, ship_y = self.ship.get_position()
                     num_rockets_launched = 0
                     # Sort targets by distance, closest first
-                    sorted_target_symbols = filter(lambda ts: ts.get_target().get_laser_constant() < 2 and \
-                                                   ts is not self.intercepted_target_symbol,
-                                                    self.target_symbols)
-                    sorted_target_symbols = sorted(self.target_symbols, key=self.compare_target_laser_constants)
+
+                    sorted_target_symbols = []
+                    for ts in self.target_symbols:
+                        if ts.get_target().get_laser_constant() < 1.5:
+                            #print("Tilim!")
+                            sorted_target_symbols.append(ts)
+                    sorted_target_symbols = sorted(sorted_target_symbols, key=self.compare_target_laser_constants)
                     if sorted_target_symbols:
                         for target_symbol in sorted_target_symbols:
                             if num_rockets_launched < MAX_ROCKETS_PER_LAUNCH:
@@ -302,29 +302,38 @@ class Simulation:
                         if num_rockets_launched > 0:
                             self.last_rocket_launch_time = current_time
                             for target_symbol in self.rockets_to_launch:
+                                if target_symbol is self.intercepted_target_symbol:
+                                    self.intercepted_target_symbol = None
+                                    self.interception_in_progress = False
+                                    self.laser_cooldown_time = time.time()  # Start cooldown
+                                flag = False
+                                for rocket in self.rockets:
+                                    if rocket.get_target_symbol() is target_symbol:
+                                        flag = True
+                                        break
+                                if flag:
+                                    continue
                                 self.rockets.append(self.RocketSymbol(ship_x, ship_y, target_symbol))
                                 self.rocket_count += 1  # Increment the rocket counter
-                                print(f"Rocket launched at target {target_symbol.get_target().type}!")
+                                # print(f"Rocket launched at target {target_symbol.get_target().type}!")
                             self.rockets_to_launch = []  # Clear the list after launching
-                    else:
-                        print("No targets available for launch")
             # Handle interception results
             self.handle_interception_result()
 
             # Check for interception completion and process result
             if self.interception_end_time and time.time() >= self.interception_end_time:
-                if self.interception_result:
+                if self.interception_result and self.intercepted_target_symbol:
                     self.interception_count += 1
-                    print("Target Intercepted!")
+                    #print("Target Intercepted With Laser!")
                     self.explosion_time = time.time()
                     self.explosion_coords = (
                         self.intercepted_target_symbol.x, self.intercepted_target_symbol.y)
                     if self.intercepted_target_symbol in self.target_symbols:
                         self.target_symbols.remove(self.intercepted_target_symbol)
-                    self.laser_cooldown_time = time.time()  # Start cooldown
                 else:
-                    print("Interception Failed!")
-                    self.laser_cooldown_time = time.time()
+                    pass
+                    #print("Interception With Laser Failed!")
+                self.laser_cooldown_time = time.time()
                 self.interception_end_time = None  # Reset
                 self.interception_result = None
 
@@ -338,14 +347,20 @@ class Simulation:
                     # remove the laser if the rocket has already collided
                     self.rockets.remove(rocket)
                     continue
+                elif rocket.get_target_symbol() not in self.target_symbols:
+                    self.rockets.remove(rocket)
+                    continue
                 for target_symbol in list(self.target_symbols):
                     if rocket.check_collision(target_symbol):
-                        print("Rocket hit target!")
+                        # print("Rocket hit target!")
                         self.explosion_time = time.time()
                         self.explosion_coords = (rocket.x, rocket.y)  # Use rocket's position
                         rocket.has_collided = True  # set the flag
                         self.rockets.remove(rocket)
                         self.target_symbols.remove(target_symbol)  # Remove the hit target
+                        if target_symbol is self.intercepted_target_symbol:
+                            self.result_queue.put((True, 0)) 
+                            self.handle_interception_result()
                         break  # Exit inner loop to avoid modifying the list while iterating
                 # Check for game over condition: Ship hit by target
                 for target_symbol in list(self.target_symbols):
@@ -357,8 +372,6 @@ class Simulation:
                 if self.game_over:
                     break
 
-                if rocket.traveled_distance > 2000:
-                    self.rockets.remove(rocket)
 
             # Draw everything
             self.screen.fill(BACKGROUND_COLOR)
@@ -425,12 +438,13 @@ class Simulation:
             time.sleep(5)  # Keep the message displayed for 5 seconds
 
         pygame.quit()
+        return self.rocket_count, self.interception_count
 
 
 
 if __name__ == "__main__":
-    simulation = Simulation()
-    try:
-        simulation.run()
-    except pygame.error as e:
-        print("Target hit the ship!")
+    results = []
+    while True:
+        simulation = Simulation()
+        results.append(simulation.run())
+        print(results)
