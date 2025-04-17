@@ -40,13 +40,13 @@ def generate_barrage(total_time):
         barrage_log.append((cumulative_time, barrage_type))
 
     # ********************
-    barrage_log = [(2, 'big')]
+    barrage_log = [(0, 'big')]
         
     return barrage_log
 
 
 
-def generate_targets_by_barrage(barrage_type):
+def generate_targets_by_barrage(barrage_type, x):
     """
     Generates targets based on the type of barrage detected. For simplicity,
     this function currently generates a fixed number of targets.
@@ -57,7 +57,9 @@ def generate_targets_by_barrage(barrage_type):
     if barrage_type == "small":
         return [target.Anti_Ship_Missile() for _ in range(2)]
     elif barrage_type == "big":
-        return [target.Drone() for _ in range(2)] + [target.Anti_Ship_Missile() for _ in range(8)]
+        drone_count = math.floor(x / 5)
+        anti_ship_missile_count = x - drone_count  
+        return [target.Drone() for _ in range(drone_count)] + [target.Anti_Ship_Missile() for _ in range(anti_ship_missile_count)]
     
 def present_barrage_generation():
     simulation_duration = 14  # Simulate for 14 days

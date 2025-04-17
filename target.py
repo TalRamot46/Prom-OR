@@ -1,15 +1,15 @@
 import math
 import numpy as np
 import matplotlib.pyplot as plt
-
+TIME_CONST = 1
 class Target:
     def __init__(self, distance, velocity, target_type, interception_max_probabilities, laser_interception_timing_data=None):
         self.distance = distance
-        self.velocity = velocity
+        self.velocity = velocity * TIME_CONST
         self.type = target_type
         self._interception_max_probabolities = interception_max_probabilities
         self._laser_interception_timing_data = laser_interception_timing_data
-
+        
     def get_interception_probability(self, interceptor):
         return self._interception_probabolities[interceptor]
     
@@ -64,15 +64,15 @@ class Target:
     def get_dome_interception(self): 
         interception_timing_data = {5 : 7, 10 : 12}
         linear_interploated_time = self.linear_interpolate(self.distance, interception_timing_data)
-        return linear_interploated_time
+        return linear_interploated_time / TIME_CONST
     
     def get_balistic_interception(self):
         interception_timing_data = {10 : 15, 20 : 25} # to be checked with Shaked
         linear_interploated_time = self.linear_interpolate(self.distance, interception_timing_data)
-        return linear_interploated_time
+        return linear_interploated_time / TIME_CONST
     
     def get_max_fire_time(self):
-        return Target.linear_interpolate(self.distance, self._laser_interception_timing_data) if self.distance > 2 else 2
+        return Target.linear_interpolate(self.distance, self._laser_interception_timing_data) / TIME_CONST if self.distance > 2 else 2
 
     def get_optimized_laser_firing_time(self, plot=False):
         if self._laser_interception_timing_data is None:
@@ -101,7 +101,7 @@ class Target:
             plt.title(f"Distance = {self.distance:.2f} | Velcocity = {self.velocity:.2f}")
             plt.show()
 
-        return optimized_firing_time, probability_of_interception, max_ratio_of_interception_by_time
+        return optimized_firing_time / TIME_CONST, probability_of_interception, max_ratio_of_interception_by_time
     
     def get_laser_constant(self): 
         return self.get_arrival_time() / self.get_max_fire_time()
