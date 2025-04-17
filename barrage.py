@@ -57,7 +57,7 @@ def generate_targets_by_barrage(barrage_type):
     if barrage_type == "small":
         return [target.Anti_Ship_Missile() for _ in range(2)]
     elif barrage_type == "big":
-        return [target.Drone() for _ in range(2)] + [target.Anti_Ship_Missile() for _ in range(10)]
+        return [target.Drone() for _ in range(2)] + [target.Anti_Ship_Missile() for _ in range(8)]
     
 def present_barrage_generation():
     simulation_duration = 14  # Simulate for 14 days

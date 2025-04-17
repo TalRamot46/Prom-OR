@@ -5,9 +5,10 @@ import threading
 import queue
 import math
 import numpy as np
-from target import Target, Anti_Ship_Missile, Drone, Ballistic_Missile
+from target import Target, Anti_Ship_Missile, Drone, Ballistic_Missile, TIME_CONST
 import barrage  # Import barrage functions
 from ship import Ship  # Import the Ship class
+import json
 
 
 # --- Constants ---
@@ -23,20 +24,21 @@ SHIP_SIZE = 30
 TARGET_SIZE = 10
 FONT_COLOR = (255, 255, 255)
 MAX_TARGETS = 10
-TARGET_SPAWN_RATE = 0.5
+TARGET_SPAWN_RATE = 0.5 * TIME_CONST
 PIXLES_TO_KM = 20
 LASER_WIDTH = 3
 ROCKET_WIDTH = 3  # Changed to 3 for the new rocket shape
 EXPLOSION_COLOR = (255, 255, 0)
-EXPLOSION_DURATION = 0.5
-ROCKET_SPEED = 200  # Pixels per second, reduced for visual effect
+EXPLOSION_DURATION = 0.5 / TIME_CONST
+ROCKET_SPEED = 200 * TIME_CONST # Pixels per second, reduced for visual effect
 ROCKET_ACCELERATION = 10  # Added rocket acceleration
-ROCKET_LAUNCH_DELAY = 1  # Add a 5-second delay between rocket launches
+ROCKET_LAUNCH_DELAY = 1 / TIME_CONST # Add a 5-second delay between rocket launches
 ROCKET_LENGTH = 10  # new rocket length
 MAX_ROCKETS_PER_LAUNCH = 2  # Allow launching a pair of rockets
 GAME_OVER_REASON_TIME = 0
 GAME_OVER_REASON_SHIP_HIT = 1
-LASER_COOLDOWN = 1  # Add a cooldown for the laser
+GAME_OVER_REASON_NO_TARGETS = 2
+LASER_COOLDOWN = 1 / TIME_CONST  # Add a cooldown for the laser
 
 
 class Simulation:
@@ -94,7 +96,7 @@ class Simulation:
     def compare_target_laser_constants(self, target_symbol):
         return target_symbol.get_target().get_laser_constant()
 
-    class RocketSymbol:
+    class InterceptorSymbol:
         def __init__(self, start_x, start_y, target_symbol):
             self.x = start_x
             self.y = start_y
@@ -173,7 +175,7 @@ class Simulation:
         self.ship = self.ShipSymbol(CENTER_X, CENTER_Y)
         self.font = pygame.font.Font(None, 30)
         self.running = True
-        self.interception_count = 0
+        self.laser_interception_count = 0
         self.start_time = time.time()
         self.interception_in_progress = False
         self.intercepted_target_symbol = None
@@ -185,12 +187,12 @@ class Simulation:
         self.explosion_time = 0
         self.ship_instance = Ship(1)
         self.target_symbols = []
-        self.interception_count = 0
+        self.laser_interception_count = 0
         self.explosion_coords = None  # Store explosion coordinates
         self.rockets = []  # List to store active rockets
         self.last_rocket_launch_time = 0  # Store the time of the last rocket launch
         self.rockets_to_launch = []  # use this list to store rockets to be launched
-        self.rocket_count = 0  # Initialize the rocket counter
+        self.interceptor_count = 0  # Initialize the rocket counter
         self.laser_start_time = 0
         self.laser_duration_extension = 0.2  # Extend laser duration by 200ms
         self.game_over = False
@@ -227,12 +229,11 @@ class Simulation:
         if radius < 30:
             pygame.draw.circle(self.screen, EXPLOSION_COLOR, (int(x), int(y)), radius)
 
-    def run(self):
-        last_target_spawn_time = self.start_time
+    def run(self, num_targets):
         dt = 0
 
         while self.running:
-            dt = self.clock.tick(60) / 1000.0
+            dt = self.clock.tick(60) / 1000.0 
             self.current_mission_time += dt
 
             for event in pygame.event.get():
@@ -249,13 +250,13 @@ class Simulation:
 
             # Spawn new targets based on barrage, using barrage.py
             if self.barrage_index < len(self.simulated_barrages):
-                barrage_time_in_days, barrage_type = self.simulated_barrages[self.barrage_index]
-                barrage_time_in_seconds = barrage_time_in_days
+                barrage_time_in_seconds, barrage_type = self.simulated_barrages[self.barrage_index]
+                barrage_time_in_seconds
                 if self.current_mission_time >= barrage_time_in_seconds:
-                    new_targets = barrage.generate_targets_by_barrage(barrage_type)
+                    new_targets = barrage.generate_targets_by_barrage(barrage_type, num_targets)
                     self.target_symbols.extend([self.TargetSymbol(target) for target in new_targets])
-                    print(
-                        f"Barrage of type {barrage_type} detected at mission time: {barrage_time_in_days:.2f} days.  {len(new_targets)} new targets spawned.")
+                    #print(
+                    #    f"Barrage of type {barrage_type} detected at mission time: {barrage_time_in_seconds:.2f} days.  {len(new_targets)} new targets spawned.")
                     self.barrage_index += 1
 
             # Update target positions
@@ -263,6 +264,12 @@ class Simulation:
                 if not target_symbol.update_distance(dt):
                     pygame.quit()
                     return
+
+
+            if not self.target_symbols:
+                self.game_over = True
+                self.game_over_reason = GAME_OVER_REASON_NO_TARGETS
+
 
             # Remove targets that go out of bounds
             self.target_symbols = [target_symbol for target_symbol in self.target_symbols
@@ -291,7 +298,6 @@ class Simulation:
                     sorted_target_symbols = []
                     for ts in self.target_symbols:
                         if ts.get_target().get_laser_constant() < 1.5:
-                            #print("Tilim!")
                             sorted_target_symbols.append(ts)
                     sorted_target_symbols = sorted(sorted_target_symbols, key=self.compare_target_laser_constants)
                     if sorted_target_symbols:
@@ -307,15 +313,15 @@ class Simulation:
                                     self.interception_in_progress = False
                                     self.laser_cooldown_time = time.time()  # Start cooldown
                                 flag = False
-                                for rocket in self.rockets:
-                                    if rocket.get_target_symbol() is target_symbol:
+                                for interceptor in self.rockets:
+                                    if interceptor.get_target_symbol() is target_symbol:
                                         flag = True
                                         break
                                 if flag:
                                     continue
-                                self.rockets.append(self.RocketSymbol(ship_x, ship_y, target_symbol))
-                                self.rocket_count += 1  # Increment the rocket counter
-                                # print(f"Rocket launched at target {target_symbol.get_target().type}!")
+                                self.rockets.append(self.InterceptorSymbol(ship_x, ship_y, target_symbol))
+                                self.interceptor_count += 1  # Increment the rocket counter
+                                #print(f"Rocket launched at target {target_symbol.get_target().type}!")
                             self.rockets_to_launch = []  # Clear the list after launching
             # Handle interception results
             self.handle_interception_result()
@@ -323,7 +329,7 @@ class Simulation:
             # Check for interception completion and process result
             if self.interception_end_time and time.time() >= self.interception_end_time:
                 if self.interception_result and self.intercepted_target_symbol:
-                    self.interception_count += 1
+                    self.laser_interception_count += 1
                     #print("Target Intercepted With Laser!")
                     self.explosion_time = time.time()
                     self.explosion_coords = (
@@ -338,25 +344,25 @@ class Simulation:
                 self.interception_result = None
 
             # Update rocket positions
-            for rocket in self.rockets:
-                rocket.update_position(dt)
+            for interceptor in self.rockets:
+                interceptor.update_position(dt)
 
             # Check for rocket collisions
-            for rocket in list(self.rockets):  # Iterate over a copy to allow removal
-                if rocket.has_collided:
+            for interceptor in list(self.rockets):  # Iterate over a copy to allow removal
+                if interceptor.has_collided:
                     # remove the laser if the rocket has already collided
-                    self.rockets.remove(rocket)
+                    self.rockets.remove(interceptor)
                     continue
-                elif rocket.get_target_symbol() not in self.target_symbols:
-                    self.rockets.remove(rocket)
+                elif interceptor.get_target_symbol() not in self.target_symbols:
+                    self.rockets.remove(interceptor)
                     continue
                 for target_symbol in list(self.target_symbols):
-                    if rocket.check_collision(target_symbol):
-                        # print("Rocket hit target!")
+                    if interceptor.check_collision(target_symbol):
+                       # print("Rocket hit target!")
                         self.explosion_time = time.time()
-                        self.explosion_coords = (rocket.x, rocket.y)  # Use rocket's position
-                        rocket.has_collided = True  # set the flag
-                        self.rockets.remove(rocket)
+                        self.explosion_coords = (interceptor.x, interceptor.y)  # Use rocket's position
+                        interceptor.has_collided = True  # set the flag
+                        self.rockets.remove(interceptor)
                         self.target_symbols.remove(target_symbol)  # Remove the hit target
                         if target_symbol is self.intercepted_target_symbol:
                             self.result_queue.put((True, 0)) 
@@ -397,8 +403,8 @@ class Simulation:
                 self.draw_laser(ship_x, ship_y, int(target_x), int(target_y))
 
             # Draw rockets
-            for rocket in self.rockets:
-                rocket.draw(self.screen)
+            for interceptor in self.rockets:
+                interceptor.draw(self.screen)
 
             # Draw explosion
             if self.explosion_time > 0 and self.explosion_coords:  # and explosion coords
@@ -415,11 +421,11 @@ class Simulation:
             self.screen.blit(timer_text, (10, 10))
 
             # Display interception count
-            count_text = self.font.render(f"Interceptions: {self.interception_count}", True, FONT_COLOR)
+            count_text = self.font.render(f"Beam interceptions: {self.laser_interception_count}", True, FONT_COLOR)
             self.screen.blit(count_text, (10, 40))
 
             # Display rocket count
-            rocket_count_text = self.font.render(f"Rockets: {self.rocket_count}", True, FONT_COLOR)
+            rocket_count_text = self.font.render(f"Dome interceptions: {self.interceptor_count}", True, FONT_COLOR)
             self.screen.blit(rocket_count_text, (10, 70))  # Display below other text
 
             pygame.display.flip()
@@ -430,21 +436,28 @@ class Simulation:
                 reason_text = self.font.render("Mission Time Elapsed", True, FONT_COLOR)
             elif self.game_over_reason == GAME_OVER_REASON_SHIP_HIT:
                 reason_text = self.font.render("Ship Hit by Target", True, FONT_COLOR)
+            elif self.game_over_reason == GAME_OVER_REASON_NO_TARGETS:
+                reason_text = self.font.render("No Targets Left", True, FONT_COLOR)
             else:
                 reason_text = self.font.render("Game Over", True, FONT_COLOR)
 
             self.screen.blit(reason_text, (CENTER_X - 100, CENTER_Y - 20))
             pygame.display.flip()
-            time.sleep(5)  # Keep the message displayed for 5 seconds
+            # time.sleep(2)  # Keep the message displayed for 5 seconds
 
         pygame.quit()
-        return self.rocket_count, self.interception_count
-
+        return self.interceptor_count, self.laser_interception_count
 
 
 if __name__ == "__main__":
-    results = []
     while True:
-        simulation = Simulation()
-        results.append(simulation.run())
-        print(results)
+        results = {}
+        for num_targets in range(20, 0, -1):
+            lst = []
+            for repititions in range(10):
+                simulation = Simulation()
+                lst.append(simulation.run(num_targets))
+                results[num_targets] = lst
+                print(results)
+            with open('result.json', 'w') as json_file:
+                json.dump(results, json_file, indent=4)
