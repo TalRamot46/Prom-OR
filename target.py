@@ -9,6 +9,7 @@ class Target:
         self.type = target_type
         self._interception_max_probabolities = interception_max_probabilities
         self._laser_interception_timing_data = laser_interception_timing_data
+        self.amount_of_attemps_to_intercept = 0
         
     def get_interception_probability(self, interceptor):
         return self._interception_probabolities[interceptor]
@@ -84,14 +85,21 @@ class Target:
         p = 0.95 # fraction of a achieved at max firing time
         d = max_firing_time
         times = np.linspace(0.01, 1.5 * d, 300)
-        probability_of_interception_by_time = a / (1 + np.exp((1 / d) * np.log(1 / p - 1) * (2 * times - d))) - a * (1 - p)
         
+        probability_of_interception_by_time = a / (1 + np.exp((1 / d) * np.log(1 / p - 1) * (2 * times - d))) - a * (1 - p)
+
         # Calculate the best interception time - by the ratio of probability to time
         ratio_of_interception_by_time = probability_of_interception_by_time / times
         optimized_index = np.argmax(ratio_of_interception_by_time)
         optimized_firing_time = times[optimized_index]
         max_ratio_of_interception_by_time = ratio_of_interception_by_time[optimized_index]
         probability_of_interception = probability_of_interception_by_time[optimized_index]
+
+        if self.amount_of_attemps_to_intercept == 1:
+            a / (1 + np.exp((1 / d) * np.log(1 / p - 1) * (2 * (times - optimized_firing_time) - d))) - a * (1 - p)
+            optimized_firing_time = times[optimized_index]
+            max_ratio_of_interception_by_time = ratio_of_interception_by_time[optimized_index]
+            probability_of_interception = probability_of_interception_by_time[optimized_index]
 
         # Plotting the results
         if plot:
@@ -104,8 +112,15 @@ class Target:
         return optimized_firing_time / TIME_CONST, probability_of_interception, max_ratio_of_interception_by_time
     
     def get_laser_constant(self): 
-        return self.get_arrival_time() / self.get_max_fire_time()
-    
+        """calculates the amount of attempts to intercept the target with laser, 
+        supposing the minimal range limit of the dome and LRAD."""
+        if self.type == "drone" and self.distance < 0.5:
+            return 0
+        if self.type == "anti-ship" and self.distance < 4:
+            return 0
+        arrival_time_to_range_limit = (self.distance - 4) / self.velocity * 3600 
+        return self.get_arrival_time() / self.get_max_fire_time()            
+        
 class Anti_Ship_Missile(Target):
     def __init__(self, distance=None, velocity=None):
         interception_max_probabolities = {"dome": 0.85, "beam" : 0.8, "LRAD": 0.8}
@@ -139,4 +154,4 @@ class Ballistic_Missile(Target):
         if velocity is None:
             velocity = np.random.normal(3000, 100) # to be checked with Shaked
         super().__init__(distance, velocity, "balistic", interception_max_probabolities, laser_interception_timing_data)
-
+        

@@ -5,6 +5,7 @@ import threading
 import queue
 import math
 import numpy as np
+import matplotlib.pyplot as plt
 from target import Target, Anti_Ship_Missile, Drone, Ballistic_Missile, TIME_CONST
 import barrage  # Import barrage functions
 from ship import Ship  # Import the Ship class
@@ -178,6 +179,7 @@ class Simulation:
         self.laser_interception_count = 0
         self.start_time = time.time()
         self.interception_in_progress = False
+        self.interception_finished = False
         self.intercepted_target_symbol = None
         self.result_queue = queue.Queue()
         self.total_mission_duration = 80  # Total mission duration in days
@@ -276,17 +278,21 @@ class Simulation:
                                     if not target_symbol.is_out_of_bounds()]
 
             # Choose and intercept target using ship.py
-            if not self.interception_in_progress and self.target_symbols:
+            if not self.interception_in_progress and self.target_symbols \
+                and (self.laser_cooldown_time == 0 or time.time() - self.laser_cooldown_time >= LASER_COOLDOWN) \
+                and not self.interception_finished:
                 best_target_index = self.ship_instance.choose_target(
                     [target_symbol.get_target() for target_symbol in self.target_symbols])
                 if best_target_index is not None:
                     target_to_intercept = self.target_symbols[best_target_index]
+                    print(self.interception_in_progress)
                     # Check if the laser is off cooldown
-                    if time.time() - self.laser_cooldown_time >= LASER_COOLDOWN:
-                        self.intercept_target(target_to_intercept)  # call intercept target
-                        #print(
-                        #    f"Attempting to intercept target {target_to_intercept.get_target().type} in distance {target_to_intercept.get_target().distance}.")
-
+                    self.intercept_target(target_to_intercept)  # call intercept target
+                    #print(
+                    #    f"Attempting to intercept target {target_to_intercept.get_target().type} in distance {target_to_intercept.get_target().distance}.")
+                else:
+                    self.interception_finished = True # identicating that all the targets reached max. intecerception attempts
+                                                         # with laser.
             # Launch up to MAX_ROCKETS_PER_LAUNCH at a time, if available
             if self.target_symbols:
                 current_time = time.time()
@@ -297,7 +303,7 @@ class Simulation:
 
                     sorted_target_symbols = []
                     for ts in self.target_symbols:
-                        if ts.get_target().get_laser_constant() < 1.5:
+                        if ts.get_target().get_laser_constant() < 2:
                             sorted_target_symbols.append(ts)
                     sorted_target_symbols = sorted(sorted_target_symbols, key=self.compare_target_laser_constants)
                     if sorted_target_symbols:
@@ -450,14 +456,44 @@ class Simulation:
 
 
 if __name__ == "__main__":
-    while True:
-        results = {}
-        for num_targets in range(20, 0, -1):
-            lst = []
-            for repititions in range(10):
-                simulation = Simulation()
-                lst.append(simulation.run(num_targets))
-                results[num_targets] = lst
-                print(results)
-            with open('result.json', 'w') as json_file:
-                json.dump(results, json_file, indent=4)
+    results = {}
+    simulation = Simulation()
+    simulation.run(20)
+    """
+    # Step 1: Run simulations and collect raw data
+    for num_targets in range(20, 0, -1):
+        lst = []
+        for repetitions in range(10):
+            simulation = Simulation()
+            lst.append(simulation.run(num_targets))
+        results[num_targets] = lst
+
+    # Save raw results
+    with open('result.json', 'w') as json_file:
+        json.dump(results, json_file, indent=4)
+
+    # Step 2: Calculate averages
+    averages = {}
+
+    for num_targets, successes in results.items():
+        avg_success = sum(successes) / len(successes)
+        success_percent = (avg_success / int(num_targets)) * 100  # in percent
+        averages[int(num_targets)] = success_percent
+
+    # Save averages
+    with open('averages.json', 'w') as file:
+        json.dump(averages, file, indent=4)
+
+    # Step 3: Plot the graph
+    sorted_targets = sorted(averages.keys(), key=lambda x: int(x))
+    sorted_successes = [averages[k] for k in sorted_targets]
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(sorted_targets, sorted_successes, marker='o')
+    plt.title('Laser Interception Success vs Number of Rockets')
+    plt.xlabel('Number of Rockets in Barrage')
+    plt.ylabel('Laser Interception Success (%)')
+    plt.grid(True)
+    plt.gca().invert_xaxis()  # Optional: Higher rocket counts on the left
+    plt.show()
+    """

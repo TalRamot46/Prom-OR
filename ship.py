@@ -21,10 +21,12 @@ class Ship():
         for i, target in enumerate(on_air_targets):
             # Assuming distance and velocity are updated elsewhere based on current_time
             _, _, max_ratio_of_interception_by_time = target.get_optimized_laser_firing_time()
-            if max_ratio_of_interception_by_time > best_ratio:
+            if max_ratio_of_interception_by_time > best_ratio and target.amount_of_attemps_to_intercept < 2:
                 best_ratio = max_ratio_of_interception_by_time
                 best_target_index = i
 
+        if best_target_index is not None:
+            on_air_targets[best_target_index].amount_of_attemps_to_intercept += 1
         return best_target_index
 
     def intercept_with_laser(self, target_to_intercept: Target, result_queue: queue.Queue):
