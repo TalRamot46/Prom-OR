@@ -29,11 +29,6 @@ class Ship():
             on_air_targets[best_target_index].amount_of_attemps_to_intercept += 1
         return best_target_index
 
-    def intercept_with_laser(self, target_to_intercept: Target, result_queue: queue.Queue):
-        optimized_firing_time, probability_of_interception, _ = target_to_intercept.get_optimized_laser_firing_time()
-        time.sleep(optimized_firing_time)  # Simulate the time taken to intercept
-        was_intercepted = random.random() < probability_of_interception
-        result_queue.put([was_intercepted, optimized_firing_time])
 
 
 

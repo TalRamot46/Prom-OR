@@ -1,4 +1,5 @@
 import math
+ROCKET_SPEED_METERS_PER_SECOND = 750  # Speed of the rocket in meters per second
 import numpy as np
 import matplotlib.pyplot as plt
 TIME_CONST = 1
@@ -111,15 +112,34 @@ class Target:
 
         return optimized_firing_time / TIME_CONST, probability_of_interception, max_ratio_of_interception_by_time
     
-    def get_laser_constant(self): 
-        """calculates the amount of attempts to intercept the target with laser, 
-        supposing the minimal range limit of the dome and LRAD."""
-        if self.type == "drone" and self.distance < 0.5:
-            return 0
-        if self.type == "anti-ship" and self.distance < 4:
-            return 0
-        arrival_time_to_range_limit = (self.distance - 4) / self.velocity * 3600 
-        return self.get_arrival_time() / self.get_max_fire_time()            
+    def get_dome_attempts(self): 
+        """calculates the amount of attempts to intercept the target with beam"""
+        if self.type == "drone":
+            if self.distance < 0.5:
+                return 0
+            arrival_time_to_range_limit = (self.distance - 0.5) / self.velocity * 3600
+        if self.type == "anti-ship":
+            if self.distance < 4:
+                return 0
+            arrival_time_to_range_limit = (self.distance - 4) / self.velocity * 3600       
+        if arrival_time_to_range_limit is None:
+            print(self.type)
+        return arrival_time_to_range_limit / self.get_beam_interception_time()            
+        
+    def get_laser_attempts(self):
+        return self.get_arrival_time() / self.get_max_fire_time()
+
+    def get_beam_interception_time(self):
+        if self.type == "drone":
+            if self.distance < 0.5:
+                return 0
+            arrival_time_of_target_to_range_limit = (self.distance - 0.5) / self.velocity * 3600
+        if self.type == "anti-ship":
+            if self.distance < 4:
+                return 0
+            arrival_time_of_target_to_range_limit = (self.distance - 4) / self.velocity * 3600
+        arrival_time_of_interceptor_to_range_limit = (self.distance - 0.5) / ROCKET_SPEED_METERS_PER_SECOND / 1000 
+        return arrival_time_of_target_to_range_limit/arrival_time_of_interceptor_to_range_limit
         
 class Anti_Ship_Missile(Target):
     def __init__(self, distance=None, velocity=None):
