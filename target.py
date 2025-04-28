@@ -1,8 +1,9 @@
 import math
 ROCKET_SPEED_METERS_PER_SECOND = 750  # Speed of the rocket in meters per second
 import numpy as np
+import random
 import matplotlib.pyplot as plt
-TIME_CONST = 1
+TIME_CONST = 2
 class Target:
     def __init__(self, distance, velocity, target_type, interception_max_probabilities, laser_interception_timing_data=None):
         self.distance = distance
@@ -76,41 +77,39 @@ class Target:
     def get_max_fire_time(self):
         return Target.linear_interpolate(self.distance, self._laser_interception_timing_data) / TIME_CONST if self.distance > 2 else 2
 
-    def get_optimized_laser_firing_time(self, plot=False):
+    def get_optimized_laser_firing_time(self, choice_oriented=False):
+        n = 3 # n standard deviations
+
+        def choose_sigma(T):
+            sigma = 1.0
+            exp_at_zero = 0
+            while exp_at_zero < 10:
+                sigma = sigma / 2
+                exp_at_zero = (T - n * sigma) ** 2 / (2 * sigma ** 2)
+            return sigma
+
         if self._laser_interception_timing_data is None:
             return None
         
         # If the firing time is not in the dictionary, use linear interpolation
         max_firing_time = self.get_max_fire_time()
-        a = self._interception_max_probabolities["beam"]
-        p = 0.95 # fraction of a achieved at max firing time
-        d = max_firing_time
-        times = np.linspace(0.01, 1.5 * d, 300)
-        
-        probability_of_interception_by_time = a / (1 + np.exp((1 / d) * np.log(1 / p - 1) * (2 * times - d))) - a * (1 - p)
+        p = self._interception_max_probabolities["beam"]
+        T = max_firing_time
 
-        # Calculate the best interception time - by the ratio of probability to time
-        ratio_of_interception_by_time = probability_of_interception_by_time / times
-        optimized_index = np.argmax(ratio_of_interception_by_time)
-        optimized_firing_time = times[optimized_index]
-        max_ratio_of_interception_by_time = ratio_of_interception_by_time[optimized_index]
-        probability_of_interception = probability_of_interception_by_time[optimized_index]
+        sigma = choose_sigma(T)
+        mu = T - n * sigma
 
-        if self.amount_of_attemps_to_intercept == 1:
-            a / (1 + np.exp((1 / d) * np.log(1 / p - 1) * (2 * (times - optimized_firing_time) - d))) - a * (1 - p)
-            optimized_firing_time = times[optimized_index]
-            max_ratio_of_interception_by_time = ratio_of_interception_by_time[optimized_index]
-            probability_of_interception = probability_of_interception_by_time[optimized_index]
-
-        # Plotting the results
-        if plot:
-            plt.figure(figsize=(10, 6))
-            plt.plot(times, probability_of_interception_by_time, label=self.type)
-            plt.plot(times, probability_of_interception_by_time / times, label=self.type + " ratio")
-            plt.title(f"Distance = {self.distance:.2f} | Velcocity = {self.velocity:.2f}")
-            plt.show()
-
-        return optimized_firing_time / TIME_CONST, probability_of_interception, max_ratio_of_interception_by_time
+        if not choice_oriented:
+            if random.random() > p: # failure
+                return mu / TIME_CONST, False
+            else: # success
+                time_of_attempt = np.random.normal(mu, sigma)
+                if time_of_attempt < mu:
+                    return time_of_attempt / TIME_CONST, True
+                else:
+                    return mu / TIME_CONST, True
+        else: # used for choosing between different targets
+            return 1 / (sigma * np.sqrt(2 * np.pi)) / mu
     
     def get_dome_attempts(self): 
         """calculates the amount of attempts to intercept the target with beam"""

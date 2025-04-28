@@ -20,7 +20,7 @@ class Ship():
 
         for i, target in enumerate(on_air_targets):
             # Assuming distance and velocity are updated elsewhere based on current_time
-            _, _, max_ratio_of_interception_by_time = target.get_optimized_laser_firing_time()
+            max_ratio_of_interception_by_time = target.get_optimized_laser_firing_time(choice_oriented=True)
             if max_ratio_of_interception_by_time > best_ratio and target.amount_of_attemps_to_intercept < 2:
                 best_ratio = max_ratio_of_interception_by_time
                 best_target_index = i
