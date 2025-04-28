@@ -94,15 +94,13 @@ class Simulation:
         return target_symbol.get_target().get_dome_attempts()
 
     class InterceptorSymbol:
-        def __init__(self, start_x, start_y, target_symbol):
+        def __init__(self, start_x, start_y, target_symbol, velocity):
             self.x = start_x
             self.y = start_y
             self.target_x = target_symbol.x
             self.target_y = target_symbol.y
             self.target_symbol = target_symbol  # Store the target
-            self.speed_x = 0
-            self.speed_y = 0
-            self.speed = ROCKET_SPEED_PIXELS
+            self.velocity = ROCKET_SPEED_PIXELS * velocity
             self.angle = math.atan2(target_symbol.y - start_y, target_symbol.x - start_x)  # calculate initial angle
             self.has_collided = False
 
@@ -112,8 +110,8 @@ class Simulation:
         def update_position(self, dt):
             if self.has_collided:
                 return  # Stop updating position after collision
-            self.x += self.speed * math.cos(self.angle) * dt
-            self.y += self.speed * math.sin(self.angle) * dt
+            self.x += self.velocity * math.cos(self.angle) * dt
+            self.y += self.velocity * math.sin(self.angle) * dt
 
         def draw(self, screen):
             # Draw a small triangle for the rocket
@@ -253,7 +251,12 @@ class Simulation:
                                     break
                             if already_spawned_interceptor:
                                 continue
-                            self.interceptors.append(self.InterceptorSymbol(ship_x, ship_y, target_symbol))
+                            target = target_symbol.get_target()
+                            target_distance = target.distance
+                            target_interception_time = target_symbol.get_target().get_dome_interception_time()
+                            target_velocity = target.velocity
+                            interceptor_velocity = ROCKET_SPEED_PIXELS * (target_distance / target_interception_time - target_velocity) 
+                            self.interceptors.append(self.InterceptorSymbol(ship_x, ship_y, target_symbol, interceptor_velocity))
 
     def update_interceptor_positions(self, dt):
         # Update rocket positions

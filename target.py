@@ -1,5 +1,5 @@
 import math
-ROCKET_SPEED_METERS_PER_SECOND = 750  # Speed of the rocket in meters per second
+ROCKET_SPEED_METERS_PER_SECOND = 1  # Speed of the rocket in meters per second
 import numpy as np
 import random
 import matplotlib.pyplot as plt
@@ -20,6 +20,7 @@ class Target:
         self.distance -= self.velocity * dt / 3600
         if self.distance < 0:
             raise ValueError("Distance cannot be negative.")
+    
 
     def get_arrival_time(self):
         if self.velocity == 0:
@@ -64,7 +65,7 @@ class Target:
                 # This should ideally not be reached given the previous checks
                 return None
 
-    def get_dome_interception(self): 
+    def get_dome_interception_time(self): 
         interception_timing_data = {5 : 7, 10 : 12}
         linear_interploated_time = self.linear_interpolate(self.distance, interception_timing_data)
         return linear_interploated_time / TIME_CONST
@@ -123,7 +124,7 @@ class Target:
             arrival_time_to_range_limit = (self.distance - 4) / self.velocity * 3600       
         if arrival_time_to_range_limit is None:
             print(self.type)
-        return arrival_time_to_range_limit / self.get_beam_interception_time()            
+        return arrival_time_to_range_limit / self.get_dome_interception_time()            
         
     def get_laser_attempts(self):
         return self.get_arrival_time() / self.get_max_fire_time()
