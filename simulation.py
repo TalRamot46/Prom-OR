@@ -22,14 +22,12 @@ SHIP_SIZE = 30
 TARGET_SIZE = 10
 FONT_COLOR = (255, 255, 255)
 MAX_TARGETS = 10
-TARGET_SPAWN_RATE = 0.5 * TIME_CONST
 PIXLES_PER_KM = 20
 LASER_WIDTH = 3
 ROCKET_WIDTH = 3  # Changed to 3 for the new rocket shape
 EXPLOSION_COLOR = (255, 255, 0)
 EXPLOSION_DURATION = 0.5 / TIME_CONST
-ROCKET_SPEED_PIXELS = ROCKET_SPEED_METERS_PER_SECOND / 1000 * 20 * TIME_CONST # Pixels per second, reduced for visual effect
-ROCKET_ACCELERATION = 10  # Added rocket acceleration
+ROCKET_SPEED_PIXELS = ROCKET_SPEED_METERS_PER_SECOND / 1000 * PIXLES_PER_KM * TIME_CONST # Pixels per second, reduced for visual effect
 ROCKET_LAUNCH_DELAY = 1 / TIME_CONST # Add a 5-second delay between rocket launches
 ROCKET_LENGTH = 10  # new rocket length
 MAX_ROCKETS_PER_LAUNCH = 2  # Allow launching a pair of rockets
@@ -376,7 +374,7 @@ class Simulation:
         self.generate_targets(num_targets)
 
         while self.running:
-            dt = self.clock.tick(60) / 1000.0
+            dt = self.clock.tick(60) / 1000.0 
             self.current_mission_time += dt
 
             for event in pygame.event.get():
@@ -413,11 +411,11 @@ if __name__ == "__main__":
     results = {}
     simulation = Simulation()
     simulation.run(20)
-    """
+
     # Step 1: Run simulations and collect raw data
     for num_targets in range(20, 0, -1):
         lst = []
-        for repetitions in range(10):
+        for repetitions in range(1):
             simulation = Simulation()
             lst.append(simulation.run(num_targets))
         results[num_targets] = lst
@@ -457,4 +455,4 @@ if __name__ == "__main__":
     plt.gca().invert_xaxis()  # Optional: Higher target counts on the left
     plt.legend()
     plt.show()
-    """
+    

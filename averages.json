@@ -1,0 +1,82 @@
+{
+    "20": {
+        "avg_rockets": 16.0,
+        "avg_lasers": 4.0
+    },
+    "19": {
+        "avg_rockets": 15.0,
+        "avg_lasers": 4.0
+    },
+    "18": {
+        "avg_rockets": 16.0,
+        "avg_lasers": 2.0
+    },
+    "17": {
+        "avg_rockets": 13.0,
+        "avg_lasers": 4.0
+    },
+    "16": {
+        "avg_rockets": 14.0,
+        "avg_lasers": 2.0
+    },
+    "15": {
+        "avg_rockets": 14.0,
+        "avg_lasers": 1.0
+    },
+    "14": {
+        "avg_rockets": 12.0,
+        "avg_lasers": 2.0
+    },
+    "13": {
+        "avg_rockets": 12.0,
+        "avg_lasers": 1.0
+    },
+    "12": {
+        "avg_rockets": 10.0,
+        "avg_lasers": 2.0
+    },
+    "11": {
+        "avg_rockets": 10.0,
+        "avg_lasers": 1.0
+    },
+    "10": {
+        "avg_rockets": 9.0,
+        "avg_lasers": 1.0
+    },
+    "9": {
+        "avg_rockets": 8.0,
+        "avg_lasers": 1.0
+    },
+    "8": {
+        "avg_rockets": 8.0,
+        "avg_lasers": 0.0
+    },
+    "7": {
+        "avg_rockets": 6.0,
+        "avg_lasers": 1.0
+    },
+    "6": {
+        "avg_rockets": 5.0,
+        "avg_lasers": 1.0
+    },
+    "5": {
+        "avg_rockets": 5.0,
+        "avg_lasers": 0.0
+    },
+    "4": {
+        "avg_rockets": 4.0,
+        "avg_lasers": 0.0
+    },
+    "3": {
+        "avg_rockets": 3.0,
+        "avg_lasers": 0.0
+    },
+    "2": {
+        "avg_rockets": 2.0,
+        "avg_lasers": 0.0
+    },
+    "1": {
+        "avg_rockets": 1.0,
+        "avg_lasers": 0.0
+    }
+}

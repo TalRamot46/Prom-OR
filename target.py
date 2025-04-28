@@ -3,7 +3,7 @@ ROCKET_SPEED_METERS_PER_SECOND = 750  # Speed of the rocket in meters per second
 import numpy as np
 import random
 import matplotlib.pyplot as plt
-TIME_CONST = 2
+TIME_CONST = 20
 class Target:
     def __init__(self, distance, velocity, target_type, interception_max_probabilities, laser_interception_timing_data=None):
         self.distance = distance
@@ -75,7 +75,7 @@ class Target:
         return linear_interploated_time / TIME_CONST
     
     def get_max_fire_time(self):
-        return Target.linear_interpolate(self.distance, self._laser_interception_timing_data) / TIME_CONST if self.distance > 2 else 2
+        return Target.linear_interpolate(self.distance, self._laser_interception_timing_data) / TIME_CONST if self.distance > 2 else 2 / TIME_CONST
 
     def get_optimized_laser_firing_time(self, choice_oriented=False):
         n = 3 # n standard deviations
@@ -101,13 +101,13 @@ class Target:
 
         if not choice_oriented:
             if random.random() > p: # failure
-                return mu / TIME_CONST, False
+                return mu, False
             else: # success
                 time_of_attempt = np.random.normal(mu, sigma)
                 if time_of_attempt < mu:
-                    return time_of_attempt / TIME_CONST, True
+                    return time_of_attempt, True
                 else:
-                    return mu / TIME_CONST, True
+                    return mu, True
         else: # used for choosing between different targets
             return 1 / (sigma * np.sqrt(2 * np.pi)) / mu
     
