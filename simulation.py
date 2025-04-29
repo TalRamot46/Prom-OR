@@ -7,6 +7,7 @@ from target import Target, Anti_Ship_Missile, Drone, Ballistic_Missile, TIME_CON
 import barrage  # Import barrage functions
 from ship import Ship  # Import the Ship class
 import json
+import numpy as np
 import matplotlib.pyplot as plt
 
 # --- Constants ---
@@ -27,7 +28,7 @@ LASER_WIDTH = 3
 ROCKET_WIDTH = 3  # Changed to 3 for the new rocket shape
 EXPLOSION_COLOR = (255, 255, 0)
 EXPLOSION_DURATION = 0.5 / TIME_CONST
-ROCKET_SPEED_PIXELS = ROCKET_SPEED_METERS_PER_SECOND / 1000 * PIXLES_PER_KM * TIME_CONST # Pixels per second, reduced for visual effect
+PIXELS_PER_KM = ROCKET_SPEED_METERS_PER_SECOND / 1000 * PIXLES_PER_KM * TIME_CONST # Pixels per second, reduced for visual effect
 ROCKET_LAUNCH_DELAY = 1 / TIME_CONST # Add a 5-second delay between rocket launches
 ROCKET_LENGTH = 10  # new rocket length
 MAX_ROCKETS_PER_LAUNCH = 2  # Allow launching a pair of rockets
@@ -100,7 +101,7 @@ class Simulation:
             self.target_x = target_symbol.x
             self.target_y = target_symbol.y
             self.target_symbol = target_symbol  # Store the target
-            self.velocity = ROCKET_SPEED_PIXELS * velocity
+            self.velocity = PIXELS_PER_KM * velocity
             self.angle = math.atan2(target_symbol.y - start_y, target_symbol.x - start_x)  # calculate initial angle
             self.has_collided = False
 
@@ -254,9 +255,8 @@ class Simulation:
                             target = target_symbol.get_target()
                             target_distance = target.distance
                             target_interception_time = target_symbol.get_target().get_dome_interception_time()
-                            target_velocity = target.velocity
-                            interceptor_velocity = ROCKET_SPEED_PIXELS * (target_distance / target_interception_time - target_velocity) 
-                            self.interceptors.append(self.InterceptorSymbol(ship_x, ship_y, target_symbol, interceptor_velocity))
+                            interceptor_velocity_meters_per_second = target_distance * 1000 / target_interception_time
+                            self.interceptors.append(self.InterceptorSymbol(ship_x, ship_y, target_symbol, interceptor_velocity_meters_per_second))
 
     def update_interceptor_positions(self, dt):
         # Update rocket positions

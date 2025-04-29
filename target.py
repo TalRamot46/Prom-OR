@@ -3,7 +3,7 @@ ROCKET_SPEED_METERS_PER_SECOND = 1  # Speed of the rocket in meters per second
 import numpy as np
 import random
 import matplotlib.pyplot as plt
-TIME_CONST = 20
+TIME_CONST = 5
 class Target:
     def __init__(self, distance, velocity, target_type, interception_max_probabilities, laser_interception_timing_data=None):
         self.distance = distance
