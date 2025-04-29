@@ -1,9 +1,9 @@
 import math
-ROCKET_SPEED_METERS_PER_SECOND = 1  # Speed of the rocket in meters per second
 import numpy as np
 import random
 import matplotlib.pyplot as plt
-TIME_CONST = 5
+TIME_CONST = 20
+ROCKET_SPEED_METERS_PER_SECOND = 750 * TIME_CONST # Speed of the rocket in meters per second
 class Target:
     def __init__(self, distance, velocity, target_type, interception_max_probabilities, laser_interception_timing_data=None):
         self.distance = distance
@@ -112,19 +112,27 @@ class Target:
         else: # used for choosing between different targets
             return 1 / (sigma * np.sqrt(2 * np.pi)) / mu
     
-    def get_dome_attempts(self): 
+    def get_dome_attempts(self, interceptor_velocity): 
         """calculates the amount of attempts to intercept the target with beam"""
-        if self.type == "drone":
-            if self.distance < 0.5:
-                return 0
-            arrival_time_to_range_limit = (self.distance - 0.5) / self.velocity * 3600
-        if self.type == "anti-ship":
-            if self.distance < 4:
-                return 0
-            arrival_time_to_range_limit = (self.distance - 4) / self.velocity * 3600       
-        if arrival_time_to_range_limit is None:
-            print(self.type)
-        return arrival_time_to_range_limit / self.get_dome_interception_time()            
+        range_limit = {"drone": 0.5, "anti-ship": 4}[self.type]
+        if self.distance < range_limit:
+            return 0
+        # assuming fixed interceptor velocity
+        temp_distance = self.distance
+        num_attempts = 0
+        while temp_distance > range_limit:
+            num_attempts += 1
+            time_to_interception = temp_distance * 1000 / (interceptor_velocity + self.velocity)
+            temp_distance -= time_to_interception * self.velocity / 1000
+        return num_attempts
+        # return arrival_time_to_range_limit / self.get_dome_interception_time()    
+
+    def get_time_to_range_limit(self, interceptor_velocity):  
+        range_limit = {"drone": 0.5, "anti-ship": 4}[self.type]
+        if self.distance < range_limit:
+            return 0
+        time_to_interception = (self.distance - range_limit) * 1000 / (interceptor_velocity + self.velocity)
+        return time_to_interception
         
     def get_laser_attempts(self):
         return self.get_arrival_time() / self.get_max_fire_time()
@@ -149,10 +157,10 @@ class Anti_Ship_Missile(Target):
         if distance is None:
             distance = np.random.normal(15, 1)
         if velocity is None:
-            if np.random.random() < 0.5:
-                velocity = np.random.normal(2000, 50)  
+            if np.random.random() < 0.2:
+                velocity = np.random.normal(819, 50)  
             else:
-                velocity = np.random.normal(800, 30) 
+                velocity = np.random.normal(514, 30) 
         super().__init__(distance, velocity, "anti-ship", interception_max_probabolities, laser_interception_timing_data)
 
 class Drone(Target):

@@ -28,15 +28,14 @@ LASER_WIDTH = 3
 ROCKET_WIDTH = 3  # Changed to 3 for the new rocket shape
 EXPLOSION_COLOR = (255, 255, 0)
 EXPLOSION_DURATION = 0.5 / TIME_CONST
-PIXELS_PER_KM = ROCKET_SPEED_METERS_PER_SECOND / 1000 * PIXLES_PER_KM * TIME_CONST # Pixels per second, reduced for visual effect
 ROCKET_LAUNCH_DELAY = 1 / TIME_CONST # Add a 5-second delay between rocket launches
 ROCKET_LENGTH = 10  # new rocket length
-MAX_ROCKETS_PER_LAUNCH = 2  # Allow launching a pair of rockets
+MAX_ROCKETS_PER_LAUNCH = 3  # Allow launching a pair of rockets
 GAME_OVER_REASON_TIME = 0
 GAME_OVER_REASON_SHIP_HIT = 1
 GAME_OVER_REASON_NO_TARGETS = 2
-LASER_COOLDOWN = 1 / TIME_CONST  # Add a cooldown for the laser
-LASER_COOLDOWN_NO_FIRE = 0.5 / TIME_CONST  # Cooldown time for the laser when not firing
+LONG_LASER_COOLDOWN = 1 / TIME_CONST  # Add a cooldown for the laser
+SHORT_LASER_COOLDOWN = 0.5 / TIME_CONST  # Cooldown time for the laser when not firing
 
 
 class Simulation:
@@ -92,7 +91,7 @@ class Simulation:
         return target_symbol.get_target().distance
 
     def compare_target_dome_attempts(self, target_symbol: TargetSymbol):
-        return target_symbol.get_target().get_dome_attempts()
+        return target_symbol.get_target().get_time_to_range_limit(ROCKET_SPEED_METERS_PER_SECOND)
 
     class InterceptorSymbol:
         def __init__(self, start_x, start_y, target_symbol, velocity):
@@ -101,7 +100,7 @@ class Simulation:
             self.target_x = target_symbol.x
             self.target_y = target_symbol.y
             self.target_symbol = target_symbol  # Store the target
-            self.velocity = PIXELS_PER_KM * velocity
+            self.velocity = PIXLES_PER_KM * velocity / 1000
             self.angle = math.atan2(target_symbol.y - start_y, target_symbol.x - start_x)  # calculate initial angle
             self.has_collided = False
 
@@ -230,7 +229,7 @@ class Simulation:
 
                 target_symbols_sorted_by_dome_attempts: list["Simulation.TargetSymbol"] = []
                 for ts in self.target_symbols:
-                    if ts.get_target().get_laser_attempts() < 1 or ts.get_target().get_dome_attempts() < 2:
+                    if ts.get_target().get_laser_attempts() < 1 or ts.get_target().get_dome_attempts(ROCKET_SPEED_METERS_PER_SECOND) < 2:
                         target_symbols_sorted_by_dome_attempts.append(ts)
                 target_symbols_sorted_by_dome_attempts = sorted(target_symbols_sorted_by_dome_attempts, key=self.compare_target_dome_attempts)
                 if target_symbols_sorted_by_dome_attempts:
@@ -253,10 +252,7 @@ class Simulation:
                             if already_spawned_interceptor:
                                 continue
                             target = target_symbol.get_target()
-                            target_distance = target.distance
-                            target_interception_time = target_symbol.get_target().get_dome_interception_time()
-                            interceptor_velocity_meters_per_second = target_distance * 1000 / target_interception_time
-                            self.interceptors.append(self.InterceptorSymbol(ship_x, ship_y, target_symbol, interceptor_velocity_meters_per_second))
+                            self.interceptors.append(self.InterceptorSymbol(ship_x, ship_y, target_symbol, ROCKET_SPEED_METERS_PER_SECOND))
 
     def update_interceptor_positions(self, dt):
         # Update rocket positions
@@ -265,18 +261,22 @@ class Simulation:
 
         # Check for rocket collisions
         for interceptor in list(self.interceptors):  # Iterate over a copy to allow removal
-            if interceptor.has_collided:
-                # remove the laser if the rocket has already collided
-                self.interceptors.remove(interceptor)
-                continue
-            elif interceptor.get_target_symbol() not in self.target_symbols:
+            if interceptor.get_target_symbol() not in self.target_symbols:
                 self.interceptors.remove(interceptor)
                 continue
             for target_symbol in list(self.target_symbols):
-                if interceptor.check_collision(target_symbol):
+                if interceptor.check_collision(target_symbol) and interceptor in self.interceptors:
+                    range_limit = {"drone": 0.5, "anti-ship": 4}[target_symbol.get_target().type]
+                    if target_symbol.get_target().distance < range_limit:
+                        self.interceptors.remove(interceptor)
+                        continue
+                    interception_probability = target_symbol.get_target()._interception_max_probabolities["dome"]
+                    if random.random() > interception_probability:
+                        self.interceptors.remove(interceptor)
+                        continue
+                    # need to check for up to 2 interceptors.
                     self.explosion_time = time.time()
                     self.explosion_coords = (interceptor.x, interceptor.y)  # Use rocket's position
-                    interceptor.has_collided = True  # set the flag
                     self.interceptor_count += 1  # Increment the rocket counter
                     self.interceptors.remove(interceptor)
                     self.target_symbols.remove(target_symbol)  # Remove the hit target
@@ -395,8 +395,8 @@ class Simulation:
             self.update_targets(dt)
 
             if self.target_symbols and \
-                (self.laser_cooldown_time == 0 or (time.time() - self.laser_cooldown_time >= LASER_COOLDOWN and not self.quick_switch_flag) \
-                 or (time.time() - self.laser_cooldown_time >= LASER_COOLDOWN_NO_FIRE and self.quick_switch_flag)) and \
+                (self.laser_cooldown_time == 0 or (time.time() - self.laser_cooldown_time >= LONG_LASER_COOLDOWN and not self.quick_switch_flag) \
+                 or (time.time() - self.laser_cooldown_time >= SHORT_LASER_COOLDOWN and self.quick_switch_flag)) and \
                 not self.laser_beam_active:
                 self.intercept_with_laser_preferred_target()
             self.handle_laser_interception()
@@ -413,14 +413,18 @@ class Simulation:
 if __name__ == "__main__":
     results = {}
     simulation = Simulation()
-    simulation.run(20)
+    # simulation.run(20)
 
     # Step 1: Run simulations and collect raw data
-    for num_targets in range(20, 0, -1):
+    for num_targets in range(15, 0, -1):
         lst = []
-        for repetitions in range(1):
+        for repetitions in range(5):
             simulation = Simulation()
-            lst.append(simulation.run(num_targets))
+            interceptor, beam = simulation.run(num_targets)
+            if interceptor + beam != num_targets:
+                # ship hit
+                lst.append(None)
+            lst.append((interceptor / num_targets, beam / num_targets))
         results[num_targets] = lst
 
     # Save raw results
@@ -431,13 +435,16 @@ if __name__ == "__main__":
     averages = {}
 
     for num_targets, successes in results.items():
-        total_rockets = sum([item[0] for item in successes])
+        total_rockets = sum([item[0] for item in successes if item is not None])
         avg_rockets = total_rockets / len(successes) if successes else 0
 
-        total_lasers = sum([item[1] for item in successes])
+        total_lasers = sum([item[1] for item in successes if item is not None])
         avg_lasers = total_lasers / len(successes) if successes else 0
 
-        averages[int(num_targets)] = {'avg_rockets': avg_rockets, 'avg_lasers': avg_lasers}
+        total_hit = len([item for item in successes if item is None])
+        avg_hit = total_hit / len(successes) if successes else 0
+
+        averages[int(num_targets)] = {'avg_rockets': avg_rockets, 'avg_lasers': avg_lasers, 'avg_hit': avg_hit}
 
     # Save averages
     with open('averages.json', 'w') as file:
@@ -447,10 +454,12 @@ if __name__ == "__main__":
     sorted_targets = sorted(averages.keys(), key=lambda x: int(x))
     avg_rocket_successes = [averages[k]['avg_rockets'] for k in sorted_targets]
     avg_laser_successes = [averages[k]['avg_lasers'] for k in sorted_targets]
+    avg_hit = [averages[k]['avg_hit'] for k in sorted_targets]
 
     plt.figure(figsize=(12, 7))
     plt.plot(sorted_targets, avg_rocket_successes, marker='o', label='Average Dome Interceptions')
     plt.plot(sorted_targets, avg_laser_successes, marker='x', label='Average Beam Interceptions')
+    plt.plot(sorted_targets, avg_hit, marker='s', label='Average Ship Hits')
     plt.title('Interception Success vs Number of Initial Targets')
     plt.xlabel('Number of Initial Targets')
     plt.ylabel('Average Interceptions')

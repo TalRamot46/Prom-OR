@@ -1,82 +1,77 @@
 {
-    "20": {
-        "avg_rockets": 16.0,
-        "avg_lasers": 4.0
-    },
-    "19": {
-        "avg_rockets": 15.0,
-        "avg_lasers": 4.0
-    },
-    "18": {
-        "avg_rockets": 16.0,
-        "avg_lasers": 2.0
-    },
-    "17": {
-        "avg_rockets": 13.0,
-        "avg_lasers": 4.0
-    },
-    "16": {
-        "avg_rockets": 14.0,
-        "avg_lasers": 2.0
-    },
     "15": {
-        "avg_rockets": 14.0,
-        "avg_lasers": 1.0
+        "avg_rockets": 0.5599999999999999,
+        "avg_lasers": 0.44000000000000006,
+        "avg_hit": 0.0
     },
     "14": {
-        "avg_rockets": 12.0,
-        "avg_lasers": 2.0
+        "avg_rockets": 0.38095238095238093,
+        "avg_lasers": 0.38095238095238093,
+        "avg_hit": 0.16666666666666666
     },
     "13": {
-        "avg_rockets": 12.0,
-        "avg_lasers": 1.0
+        "avg_rockets": 0.4153846153846154,
+        "avg_lasers": 0.5846153846153845,
+        "avg_hit": 0.0
     },
     "12": {
-        "avg_rockets": 10.0,
-        "avg_lasers": 2.0
+        "avg_rockets": 0.39999999999999997,
+        "avg_lasers": 0.5999999999999999,
+        "avg_hit": 0.0
     },
     "11": {
-        "avg_rockets": 10.0,
-        "avg_lasers": 1.0
+        "avg_rockets": 0.3272727272727273,
+        "avg_lasers": 0.6727272727272726,
+        "avg_hit": 0.0
     },
     "10": {
-        "avg_rockets": 9.0,
-        "avg_lasers": 1.0
+        "avg_rockets": 0.42000000000000004,
+        "avg_lasers": 0.58,
+        "avg_hit": 0.0
     },
     "9": {
-        "avg_rockets": 8.0,
-        "avg_lasers": 1.0
+        "avg_rockets": 0.3555555555555555,
+        "avg_lasers": 0.6444444444444444,
+        "avg_hit": 0.0
     },
     "8": {
-        "avg_rockets": 8.0,
-        "avg_lasers": 0.0
+        "avg_rockets": 0.15,
+        "avg_lasers": 0.85,
+        "avg_hit": 0.0
     },
     "7": {
-        "avg_rockets": 6.0,
-        "avg_lasers": 1.0
+        "avg_rockets": 0.22857142857142856,
+        "avg_lasers": 0.7714285714285715,
+        "avg_hit": 0.0
     },
     "6": {
-        "avg_rockets": 5.0,
-        "avg_lasers": 1.0
+        "avg_rockets": 0.1111111111111111,
+        "avg_lasers": 0.6944444444444445,
+        "avg_hit": 0.16666666666666666
     },
     "5": {
-        "avg_rockets": 5.0,
-        "avg_lasers": 0.0
+        "avg_rockets": 0.0,
+        "avg_lasers": 1.0,
+        "avg_hit": 0.0
     },
     "4": {
-        "avg_rockets": 4.0,
-        "avg_lasers": 0.0
+        "avg_rockets": 0.1,
+        "avg_lasers": 0.9,
+        "avg_hit": 0.0
     },
     "3": {
-        "avg_rockets": 3.0,
-        "avg_lasers": 0.0
+        "avg_rockets": 0.0,
+        "avg_lasers": 1.0,
+        "avg_hit": 0.0
     },
     "2": {
-        "avg_rockets": 2.0,
-        "avg_lasers": 0.0
+        "avg_rockets": 0.0,
+        "avg_lasers": 1.0,
+        "avg_hit": 0.0
     },
     "1": {
-        "avg_rockets": 1.0,
-        "avg_lasers": 0.0
+        "avg_rockets": 0.0,
+        "avg_lasers": 1.0,
+        "avg_hit": 0.0
     }
 }
