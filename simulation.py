@@ -5,7 +5,6 @@ import math
 from typing import Self
 from target import Target, Anti_Ship_Missile, Drone, Ballistic_Missile, TIME_CONST, ROCKET_SPEED_METERS_PER_SECOND
 import barrage  # Import barrage functions
-from ship import Ship  # Import the Ship class
 import json
 import numpy as np
 import matplotlib.pyplot as plt
@@ -154,7 +153,6 @@ class Simulation:
         self.simulated_barrages = barrage.generate_barrage(self.total_mission_duration)
         self.current_mission_time = 0
         self.explosion_time = 0
-        self.ship_instance = Ship(1)
         self.target_symbols = []
         self.explosion_coords = None  # Store explosion coordinates
         self.interceptors = []  # List to store active rockets
@@ -211,7 +209,7 @@ class Simulation:
                                 if not target_symbol.is_out_of_bounds()]
 
     def intercept_with_laser_preferred_target(self):
-        best_target_index = self.ship_instance.choose_target([target_symbol.get_target() for target_symbol in self.target_symbols if \
+        best_target_index = self.choose_target([target_symbol.get_target() for target_symbol in self.target_symbols if \
                                                                 target_symbol not in self.target_symbols_launched_interceptors_at])
         if best_target_index is not None:
             target_to_intercept = self.target_symbols[best_target_index]
@@ -234,7 +232,6 @@ class Simulation:
                 target_symbols_sorted_by_dome_attempts = sorted(target_symbols_sorted_by_dome_attempts, key=self.compare_target_dome_attempts)
                 if target_symbols_sorted_by_dome_attempts:
                     for target_symbol in target_symbols_sorted_by_dome_attempts:
-                        if num_rockets_launched < MAX_ROCKETS_PER_LAUNCH:
                             self.target_symbols_launched_interceptors_at.append(target_symbol)
                             num_rockets_launched += 1
                     if num_rockets_launched > 0:
@@ -372,6 +369,24 @@ class Simulation:
             self.laser_cooldown_time = time.time()
             self.laser_beam_active = False
 
+    def choose_target(self, on_air_targets: list[Target]):
+        if not on_air_targets:
+            return None
+
+        best_ratio = -1
+        best_target_index = None
+
+        for i, target in enumerate(on_air_targets):
+            # Assuming distance and velocity are updated elsewhere based on current_time
+            max_ratio_of_interception_by_time = target.get_optimized_laser_firing_time(choice_oriented=True)
+            if max_ratio_of_interception_by_time > best_ratio and target.amount_of_attemps_to_intercept < 2:
+                best_ratio = max_ratio_of_interception_by_time
+                best_target_index = i
+
+        if best_target_index is not None:
+            on_air_targets[best_target_index].amount_of_attemps_to_intercept += 1
+        return best_target_index
+
     def run(self, num_targets):
         dt = 0
         self.generate_targets(num_targets)
@@ -411,30 +426,33 @@ class Simulation:
 
 
 if __name__ == "__main__":
-    results = {}
+    with open('result.json', 'r') as json_file:
+        result = json.load(json_file)
+
     simulation = Simulation()
     # simulation.run(20)
 
+
+    """
     # Step 1: Run simulations and collect raw data
-    for num_targets in range(15, 0, -1):
-        lst = []
-        for repetitions in range(5):
+    for num_targets in range(10, 0, -1):
+        lst = result[str(num_targets)]
+        for repetitions in range(10):
             simulation = Simulation()
             interceptor, beam = simulation.run(num_targets)
             if interceptor + beam != num_targets:
                 # ship hit
                 lst.append(None)
             lst.append((interceptor / num_targets, beam / num_targets))
-        results[num_targets] = lst
 
-    # Save raw results
-    with open('result.json', 'w') as json_file:
-        json.dump(results, json_file, indent=4)
-
+            # Save raw results
+            with open('result.json', 'w') as json_file:
+                json.dump(result, json_file, indent=4)
+    """
     # Step 2: Calculate averages
     averages = {}
 
-    for num_targets, successes in results.items():
+    for num_targets, successes in result.items():
         total_rockets = sum([item[0] for item in successes if item is not None])
         avg_rockets = total_rockets / len(successes) if successes else 0
 
