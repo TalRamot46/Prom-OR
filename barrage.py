@@ -57,7 +57,7 @@ def generate_targets_by_barrage(barrage_type, x):
     if barrage_type == "small":
         return [target.Anti_Ship_Missile() for _ in range(2)]
     elif barrage_type == "big":
-        drone_count = math.floor(x / 5)
+        drone_count = math.floor(0.6 * x)  # 60% drones
         anti_ship_missile_count = x - drone_count  
         return [target.Drone() for _ in range(drone_count)] + [target.Anti_Ship_Missile() for _ in range(anti_ship_missile_count)]
     

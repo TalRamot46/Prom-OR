@@ -2,7 +2,7 @@ import math
 import numpy as np
 import random
 import matplotlib.pyplot as plt
-TIME_CONST = 20
+TIME_CONST = 10
 ROCKET_SPEED_METERS_PER_SECOND = 750 * TIME_CONST # Speed of the rocket in meters per second
 class Target:
     def __init__(self, distance, velocity, target_type, interception_max_probabilities, laser_interception_timing_data=None):
@@ -11,16 +11,17 @@ class Target:
         self.type = target_type
         self._interception_max_probabolities = interception_max_probabilities
         self._laser_interception_timing_data = laser_interception_timing_data
-        self.amount_of_attemps_to_intercept = 0
+        self.amount_of_attempts_to_intercept_with_laser = 0
+        self.amount_of_attempts_to_intercept_with_dome = 0
+        self.last_interception_time = 0
+        self.delay_between_interceptions = 0
+
         
     def get_interception_probability(self, interceptor):
         return self._interception_probabolities[interceptor]
     
     def update_distance(self, dt):
-        self.distance -= self.velocity * dt / 3600
-        if self.distance < 0:
-            raise ValueError("Distance cannot be negative.")
-    
+        self.distance -= self.velocity * dt / 3600    
 
     def get_arrival_time(self):
         if self.velocity == 0:
@@ -114,7 +115,7 @@ class Target:
     
     def get_dome_attempts(self, interceptor_velocity): 
         """calculates the amount of attempts to intercept the target with beam"""
-        range_limit = {"drone": 0.5, "anti-ship": 4}[self.type]
+        range_limit = {"drone": 4, "anti-ship": 4}[self.type]
         if self.distance < range_limit:
             return 0
         # assuming fixed interceptor velocity
