@@ -2,7 +2,7 @@ import math
 import numpy as np
 import random
 import matplotlib.pyplot as plt
-TIME_CONST = 10
+TIME_CONST = 30
 ROCKET_SPEED_METERS_PER_SECOND = 750 * TIME_CONST # Speed of the rocket in meters per second
 class Target:
     def __init__(self, distance, velocity, target_type, interception_max_probabilities, laser_interception_timing_data=None):
@@ -115,7 +115,7 @@ class Target:
     
     def get_dome_attempts(self, interceptor_velocity): 
         """calculates the amount of attempts to intercept the target with beam"""
-        range_limit = {"drone": 4, "anti-ship": 4}[self.type]
+        range_limit = {"drone": 0.5, "anti-ship": 4}[self.type]
         if self.distance < range_limit:
             return 0
         # assuming fixed interceptor velocity
@@ -166,7 +166,7 @@ class Anti_Ship_Missile(Target):
 
 class Drone(Target):
     def __init__(self, distance=None, velocity=None):
-        interception_max_probabolities = {"dome": 0.8, "beam" : 0.9, "LRAD": 0}
+        interception_max_probabolities = {"dome": 0.8, "beam" : 0.01, "LRAD": 0}
         laser_interception_timing_data = {3 : 4, 6 : 6, 14 : 9} # distance [km] : time [s]
         if distance is None:
             distance = np.random.normal(10, 2)

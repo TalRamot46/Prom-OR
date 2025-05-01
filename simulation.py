@@ -26,6 +26,7 @@ PIXLES_PER_KM = 20
 LASER_WIDTH = 3
 ROCKET_WIDTH = 3  # Changed to 3 for the new rocket shape
 EXPLOSION_COLOR = (255, 255, 0)
+DOME_ATTEMPTS = 3
 EXPLOSION_DURATION = 0.5 / TIME_CONST
 ROCKET_LAUNCH_DELAY = 3 / TIME_CONST # Add a 5-second delay between rocket launches of the same target
 ROCKET_LENGTH = 10  # new rocket length
@@ -60,6 +61,7 @@ class Simulation:
     class TargetSymbol:
         def __init__(self, target: Target):
             self.target = target
+            self.z = 0
             self.set_xy(target.distance)
             self.size = TARGET_SIZE
 
@@ -93,7 +95,7 @@ class Simulation:
         return target_symbol.get_target().get_time_to_range_limit(ROCKET_SPEED_METERS_PER_SECOND)
 
     class InterceptorSymbol:
-        def __init__(self, start_x, start_y, target_symbol, velocity):
+        def __init__(self, start_x, start_y, target_symbol, velocity, double=False):
             self.x = start_x
             self.y = start_y
             self.target_x = target_symbol.x
@@ -101,14 +103,12 @@ class Simulation:
             self.target_symbol = target_symbol  # Store the target
             self.velocity = PIXLES_PER_KM * velocity / 1000
             self.angle = math.atan2(target_symbol.y - start_y, target_symbol.x - start_x)  # calculate initial angle
-            self.has_collided = False
+            self.double = double
 
         def get_target_symbol(self):
             return self.target_symbol
 
         def update_position(self, dt):
-            if self.has_collided:
-                return  # Stop updating position after collision
             self.x += self.velocity * math.cos(self.angle) * dt
             self.y += self.velocity * math.sin(self.angle) * dt
             math.sin(self.angle) * dt
@@ -128,8 +128,6 @@ class Simulation:
             pygame.draw.polygon(screen, ROCKET_COLOR, points)
 
         def check_collision(self, target_symbol):
-            if self.has_collided:
-                return False
             distance = math.sqrt((self.x - target_symbol.x) ** 2 + (self.y - target_symbol.y) ** 2)
             return distance <= target_symbol.size
 
@@ -156,7 +154,7 @@ class Simulation:
         self.explosion_time = 0
         self.target_symbols = []
         self.explosion_coords = None  # Store explosion coordinates
-        self.interceptors = []  # List to store active rockets
+        self.interceptors: list["Self.InterceptorSymbol"] = []  # List to store active rockets
         self.last_rocket_launch_time = 0  # Store the time of the last rocket launch
         self.target_symbols_launched_interceptors_at = []  # use this list to store rockets to be launched
         self.interceptor_count = 0  # Initialize the rocket counter
@@ -233,30 +231,36 @@ class Simulation:
         else:
             pass
 
-    def launch_dome(self, with_laser=True):
+
+
+    def launch_dome(self, with_laser=True):            
         # Launch up to MAX_ROCKETS_PER_LAUNCH at a time, if available
         if self.target_symbols:
             ship_x, ship_y = self.ship.get_position()
             # Sort targets by distance, closest first
             sorted_candidates_for_dome_interception: list["Simulation.TargetSymbol"] = []
             for ts in self.target_symbols:
-                if with_laser and (ts.get_target().get_laser_attempts() < 1 or ts.get_target().get_dome_attempts(ROCKET_SPEED_METERS_PER_SECOND) < 2):
+                if with_laser and (ts.get_target().get_laser_attempts() < 1 or ts.get_target().get_dome_attempts(ROCKET_SPEED_METERS_PER_SECOND) < DOME_ATTEMPTS) and \
+                    ts.get_target().get_dome_attempts(ROCKET_SPEED_METERS_PER_SECOND) > 0:
                     sorted_candidates_for_dome_interception.append(ts)
-                elif ts.get_target().get_laser_attempts() < 1 or ts.get_target().get_dome_attempts(ROCKET_SPEED_METERS_PER_SECOND) < 2:
+                elif not with_laser:
                     sorted_candidates_for_dome_interception.append(ts)
+                print(ts.get_target().get_laser_attempts())
+                print(ts.get_target().get_dome_attempts(ROCKET_SPEED_METERS_PER_SECOND))
+                print("distance", ts.get_target().distance)
+
             sorted_candidates_for_dome_interception = sorted(sorted_candidates_for_dome_interception, key=self.compare_target_dome_attempts)
-                
+                        
             for target_symbol in sorted_candidates_for_dome_interception:
                 if target_symbol in self.target_symbols_launched_interceptors_at or \
-                        target_symbol.get_target().amount_of_attempts_to_intercept_with_dome >= 2 or \
-                        time.time() - target_symbol.get_target().last_interception_time < ROCKET_LAUNCH_DELAY:
+                        (time.time() - target_symbol.get_target().last_interception_time) < ROCKET_LAUNCH_DELAY:
                     continue
                 # shut down laser beam if dome is launched
                 if target_symbol is self.intercepted_target_symbol:
                     self.laser_beam_active = False
                     self.quick_switch_flag = True
                     self.laser_cooldown_time = time.time()
-                # not to launch two interceptors at the same time at the same target
+                # not to launch an interceptor at a target that already has an interceptor on the way
                 already_spawned_interceptor = False
                 for interceptor in self.interceptors:
                     if interceptor.get_target_symbol() is target_symbol:
@@ -264,39 +268,57 @@ class Simulation:
                         break
                 if already_spawned_interceptor:
                     continue
+                
+                self.interceptor_count += 1  # Increment the rocket counter
+                new_interceptor = self.InterceptorSymbol(ship_x, ship_y, target_symbol, ROCKET_SPEED_METERS_PER_SECOND, double= \
+                                                                target_symbol.get_target().get_dome_attempts(ROCKET_SPEED_METERS_PER_SECOND) < 2)
+                if new_interceptor.double:
+                    self.interceptor_count += 1
+                self.interceptors.append(new_interceptor)
                 self.target_symbols_launched_interceptors_at.append(target_symbol)
-                target_symbol.get_target().amount_of_attempts_to_intercept_with_dome += 1
-                self.interceptors.append(self.InterceptorSymbol(ship_x, ship_y, target_symbol, ROCKET_SPEED_METERS_PER_SECOND))
+
 
     def update_interceptor_positions(self, dt):
         # Update rocket positions
         for interceptor in self.interceptors:
             interceptor.update_position(dt)
 
+        if self.target_symbols_launched_interceptors_at and not self.interceptors:
+            self.target_symbols_launched_interceptors_at = []
+
         # Check for rocket collisions
-        for interceptor in list(self.interceptors):  # Iterate over a copy to allow removal
+        for interceptor in self.interceptors:  # Iterate over a copy to allow removal
+            # sanity check:
             if interceptor.get_target_symbol() not in self.target_symbols:
+                if interceptor.get_target_symbol() in self.target_symbols_launched_interceptors_at:
+                    self.target_symbols_launched_interceptors_at.remove(interceptor.get_target_symbol())
                 self.interceptors.remove(interceptor)
-                continue
+            
             for target_symbol in self.target_symbols_launched_interceptors_at:
+                target_symbol.z = 1
                 if interceptor.check_collision(target_symbol) and interceptor in self.interceptors:
-                    self.target_symbols_launched_interceptors_at.remove(target_symbol)
-                    self.interceptor_count += 1  # Increment the rocket counter
-                    range_limit = {"drone": 0.5, "anti-ship": 4}[target_symbol.get_target().type]
-                    if target_symbol.get_target().distance < range_limit:
-                        target_symbol.get_target().last_interception_time = time.time()
-                        self.interceptors.remove(interceptor)
-                        continue
                     interception_probability = target_symbol.get_target()._interception_max_probabolities["dome"]
-                    if random.random() > interception_probability:
-                        target_symbol.get_target().last_interception_time = time.time()
-                        self.interceptors.remove(interceptor)
-                        continue
-                    # need to check for up to 2 interceptors.
-                    self.explosion_time = time.time()
-                    self.explosion_coords = (interceptor.x, interceptor.y)  # Use rocket's position
+                    range_limit = {"drone": 0.5, "anti-ship": 4}[target_symbol.get_target().type]
+                    
+                    if interceptor.double:
+                        interception_probability = 1 - (1-interception_probability) ** 2
+
                     self.interceptors.remove(interceptor)
-                    self.target_symbols.remove(target_symbol)  # Remove the hit target
+                    self.target_symbols_launched_interceptors_at.remove(target_symbol)  # Remove the target from the launched list
+                    
+                    target_symbol.z = 2
+                    if target_symbol.get_target().distance < range_limit:
+                        self.target_symbols.remove(target_symbol)  # Remove the hit target
+                        target_symbol.z = 3
+                    elif random.random() > interception_probability:
+                        target_symbol.get_target().last_interception_time = time.time()
+                        target_symbol.z = 4
+                    else:
+                        target_symbol.z = 5
+                        self.explosion_time = time.time()
+                        self.explosion_coords = (interceptor.x, interceptor.y)  # Use rocket's position
+                        self.target_symbols.remove(target_symbol)  # Remove the hit target
+                
     def drawing_screen(self, dt):
         # Draw everything
         self.screen.fill(BACKGROUND_COLOR)
@@ -424,6 +446,7 @@ class Simulation:
             self.drawing_screen(dt)
             self.check_game_over()
 
+            
         if self.game_over_reason == GAME_OVER_REASON_SHIP_HIT:
             self.interceptor_count = -1
         pygame.quit()
@@ -431,65 +454,89 @@ class Simulation:
 
 if __name__ == "__main__":
     NEW_FILE = True
+    data_file = ""
+    result_file = ""
+
+
     if not NEW_FILE:
-        with open('result2.json', 'r') as json_file:
+        with open(data_file, 'r') as json_file:
             result = json.load(json_file)
     else:
         result = {}
 
     simulation = Simulation()
-    # simulation.run(20)
 
     # Step 1: Run simulations and collect raw data
-    while True:
-        for num_targets in range(15, 0, -1):
-            if not NEW_FILE:
-                lst = result[str(num_targets)]
-            else:
-                lst = []
-                result[str(num_targets)] = lst
+    
+    for num_targets in range(10, 9, -1):
+        if not NEW_FILE:
+            lst_of_pairs = result[str(num_targets)]
+        else:
+            lst_of_pairs = []
+            result[str(num_targets)] = lst_of_pairs
 
-            for repetitions in range(5):
-                simulation = Simulation()
-                interceptor_count = simulation.run(num_targets)
-                print(interceptor_count)
-                if interceptor_count == -1:
-                    lst.append(-1)
-                else:
-                    lst.append(100 * (1 - interceptor_count / num_targets))
+        for repetitions in range(30):
+            pair = [999,999]
+            lst_of_pairs.append(pair)
+            simulation = Simulation()
+            interceptors_with_laser = simulation.run(num_targets, with_laser=True)
+            pair[0] = interceptors_with_laser
+            print(interceptors_with_laser)
 
-                # Save raw results
-                with open('result2.json', 'w') as json_file:
-                    json.dump(result, json_file, indent=4)
+            # Save raw results
+            with open(data_file, 'w') as json_file:
+                json.dump(result, json_file, indent=4)
+
+        for repetitions in range(10):
+            simulation = Simulation()
+            interceptors_without_laser = simulation.run(num_targets, with_laser=False)
+            lst_of_pairs[repetitions][1] = interceptors_without_laser
+            print(interceptors_without_laser)
+            
+            # Save raw results
+            with open(data_file, 'w') as json_file:
+                json.dump(result, json_file, indent=4)
+
     # Step 2: Calculate averages
     averages = {}
 
     for num_targets, successes in result.items():
-        laser_interception_percentage = sum([item for item in successes if item != -1])
-        avg_laser_interception_percentage = laser_interception_percentage / len([item for item in successes if item != -1])
+        filtered_with = [item[0] for item in successes if item[0] != -1]
+        sum_interceptors_with = sum(filtered_with)
+        avg_interceptors_with = sum_interceptors_with / len(filtered_with)
+        avg_hit_with = len([item[0] for item in successes if item[0] == -1]) / len(successes)
 
-        avg_hit_percentage = len([item for item in successes if item == -1]) / len(successes) * 100
-
-        averages[int(num_targets)] = {'laser_effectiveness': avg_laser_interception_percentage, 'hit_percentage': avg_hit_percentage}
+        filtered_without = [item[1] for item in successes if item[1] != -1]
+        sum_interceptors_without = sum(filtered_without)
+        avg_interceptors_without = sum_interceptors_without / len(filtered_without)
+        avg_hit_without = len([item[1] for item in successes if item[1] == -1]) / len(successes)
+        
+        averages[int(num_targets)] = {'avg_interceptors_with': avg_interceptors_with, 'avg_interceptors_without': avg_interceptors_without,
+                                      'avg_hit_with': avg_hit_with, 'avg_hit_without': avg_hit_without}
 
     # Save averages
-    with open('averages.json', 'w') as file:
+    with open(result_file, 'w') as file:
         json.dump(averages, file, indent=4)
 
     # Step 3: Plot the graph
     sorted_targets = sorted(averages.keys(), key=lambda x: int(x))
-    avg_laser_interception_percentage = [averages[k]['laser_effectiveness'] for k in sorted_targets]
-    avg_hit_percentage = [averages[k]['hit_percentage'] for k in sorted_targets]
-
+    avg_interceptors_with = [averages[k]['avg_interceptors_with'] for k in sorted_targets]
+    avg_interceptors_without = [averages[k]['avg_interceptors_without'] for k in sorted_targets]
+    avg_hit_with = [averages[k]['avg_hit_with'] for k in sorted_targets]
+    avg_hit_without = [averages[k]['avg_hit_without'] for k in sorted_targets]  
+    
     plt.figure(figsize=(12, 7))
-    plt.plot(sorted_targets, avg_laser_interception_percentage, marker='o', label='Average Beam Effectiveness')
-    plt.plot(sorted_targets, avg_hit_percentage, marker='x', label='Average Ship Hits')
-    plt.title('Interception Success vs Number of Initial Targets')
+    plt.plot(sorted_targets, avg_interceptors_with, marker='o', label='avg_interceptors_with')
+    plt.plot(sorted_targets, avg_interceptors_without, marker='x', label='avg_interceptors_without')
+    plt.plot(sorted_targets, avg_hit_with, marker='P', label='avg_hit_with')
+    plt.plot(sorted_targets, avg_hit_without, marker='v', label='avg_hit_without')
+    plt.title('Beam Effectiveness vs Number of Initial Targets (Big Barrage)')
     plt.xlabel('Number of Initial Targets')
     plt.ylabel('Average Interceptions')
     plt.grid(True)
     plt.gca().invert_xaxis()  # Optional: Higher target counts on the left
     plt.legend()
     plt.show()
+    
 
     

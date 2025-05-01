@@ -40,7 +40,7 @@ def generate_barrage(total_time):
         barrage_log.append((cumulative_time, barrage_type))
 
     # ********************
-    barrage_log = [(0, 'big')]
+    barrage_log = [(0, 'small')]
         
     return barrage_log
 
@@ -55,7 +55,7 @@ def generate_targets_by_barrage(barrage_type, x):
         list: A list of target variables representing the generated targets.
     """
     if barrage_type == "small":
-        return [target.Anti_Ship_Missile() for _ in range(2)]
+        return [target.Drone() for _ in range(x)]
     elif barrage_type == "big":
         drone_count = math.floor(0.6 * x)  # 60% drones
         anti_ship_missile_count = x - drone_count  
