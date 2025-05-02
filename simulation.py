@@ -245,10 +245,6 @@ class Simulation:
                     sorted_candidates_for_dome_interception.append(ts)
                 elif not with_laser:
                     sorted_candidates_for_dome_interception.append(ts)
-                print(ts.get_target().get_laser_attempts())
-                print(ts.get_target().get_dome_attempts(ROCKET_SPEED_METERS_PER_SECOND))
-                print("distance", ts.get_target().distance)
-
             sorted_candidates_for_dome_interception = sorted(sorted_candidates_for_dome_interception, key=self.compare_target_dome_attempts)
                         
             for target_symbol in sorted_candidates_for_dome_interception:
@@ -405,7 +401,15 @@ class Simulation:
         best_ratio = -1
         best_target_index = None
 
+        has_anti_ship = False
+        for target in on_air_targets:
+            if target.type == "anti-ship":
+                has_anti_ship = True
+                break
+
         for i, target in enumerate(on_air_targets):
+            if has_anti_ship and target.type == "drone":
+                continue
             # Assuming distance and velocity are updated elsewhere based on current_time
             max_ratio_of_interception_by_time = target.get_optimized_laser_firing_time(choice_oriented=True)
             if max_ratio_of_interception_by_time > best_ratio and target.amount_of_attempts_to_intercept_with_laser < 2 \
@@ -454,8 +458,8 @@ class Simulation:
 
 if __name__ == "__main__":
     NEW_FILE = True
-    data_file = ""
-    result_file = ""
+    data_file = "data_new"
+    result_file = "result_new"
 
 
     if not NEW_FILE:
@@ -468,14 +472,14 @@ if __name__ == "__main__":
 
     # Step 1: Run simulations and collect raw data
     
-    for num_targets in range(10, 9, -1):
+    for num_targets in range(100, 9, -1):
         if not NEW_FILE:
             lst_of_pairs = result[str(num_targets)]
         else:
             lst_of_pairs = []
             result[str(num_targets)] = lst_of_pairs
 
-        for repetitions in range(30):
+        for repetitions in range(10):
             pair = [999,999]
             lst_of_pairs.append(pair)
             simulation = Simulation()

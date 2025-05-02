@@ -40,7 +40,7 @@ def generate_barrage(total_time):
         barrage_log.append((cumulative_time, barrage_type))
 
     # ********************
-    barrage_log = [(0, 'small')]
+    barrage_log = [(0, 'big')]
         
     return barrage_log
 
